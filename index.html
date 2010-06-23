@@ -1,0 +1,433 @@
+<html>
+<head>
+<title>Requiem</title>
+<link type="text/css" href="css/ui-lightness/jquery-ui-1.8.1.custom.css" rel="Stylesheet" />	
+<style type="text/css">  
+
+  #canvasContainer {
+    display:none;
+  }
+  
+  #toolset {
+    display:none;
+  }
+
+  #requiem { 
+    border: 1px solid black; 
+    margin:0;
+    padding:0;
+    }  
+    
+  body {
+    padding:0;
+    margin:0;
+    font: 62.5% "Trebuchet MS", sans-serif;
+  }
+  
+</style>  
+</head>
+
+<body>
+<div id="canvasContainer" title="Requiem">
+<canvas id="requiem" width="640" height="480">
+Unable to find canvas!
+</canvas>
+</div>
+<div id="toolset" title="Tools">
+
+<div id="tools0">
+	<input type="radio" id="tools1" name="toolsRadio" value="0" onclick="toolChange(this.value);"  checked="true" /><label for="tools1">Pencil</label>
+	<input type="radio" id="tools2" name="toolsRadio" value="1" onclick="toolChange(this.value);" /><label for="tools2">Line</label>
+</div>
+
+
+<button onclick="canvasClear();">Clear Canvas</button>
+<button onclick="undo();">Undo</button>
+<button onclick="redo();">Redo</button>
+<button onclick="invert();">Invert Colors</button>
+<button onclick="ctxDataURL();">Data URL</button>
+</div>
+
+<div id="messageBox" title="Message!">message dummy text</div>
+
+<div id="debug" title="Debug"></div>
+
+</body>
+
+
+<script type="text/javascript" src="js/jquery-1.4.2.min.js"></script>
+<script type="text/javascript" src="js/jquery-ui-1.8.1.custom.min.js"></script>
+<script type="text/javascript" src="js/requiem.js"></script>
+<script languge="javascript">
+/*
+
+  TBD - create list of todos and create roadmap
+
+  TBD - workspaces, as in a layout for all the windows to start with, and maybe multiple layouts
+  TBD - tool options, more options for individual tools
+  TBD - status bar
+  TBD - menu
+  
+  TBD - auto scroll for debug window
+  
+*/
+
+  var canvas = document.getElementById('requiem');
+  var ctx;
+  
+  var downx = 0;
+  var downy = 0;
+  var upx = 0;
+  var upy = 0;
+  var mousex = 0;
+  var mousey = 0;
+  var mouseprevx = 0;
+  var mouseprevy = 0;
+  var toolselected = 0;
+  
+  var ctxStrokeStyle = 'rgba(0,0,0,1)';
+  var ctxLineWidth = 1;
+  var ctxLineCap = "round"; // "butt", "round", "square" (default "butt")
+  var ctxLineJoin = "round"; // "round", "bevel", "miter" (default "miter")
+  
+  
+  var toolpencil = 0;
+  var toolline = 1;
+  
+  var undoArray = new Array();
+  var redoArray = new Array();
+  
+  var md = false;
+  var lineDrawActive = false;
+  
+  // set to true so that the canvas is not cleared more than once. set to true so that we clear and set an undo
+  var ctxCleared = false;
+
+  $(document).ready(function() {
+
+    init();
+
+    // init message box for later use!
+  $("#messageBox").dialog({
+					autoOpen: false,
+          modal: true,
+          resizable: false,
+					buttons: {
+						"Ok": function() { 
+							$(this).dialog("close"); 
+						}
+					}
+				});
+        
+    // init debug window for later use!
+    $("#debug").dialog({
+					autoOpen: true,
+          modal: false,
+          resizable: true,
+          height:250,
+          width:300,
+					buttons: {
+						"Clear": function() { 
+							$(this).html("");
+						}
+					}
+				});
+
+  }); 
+  
+  function toolChange(val) {
+    toolselected = val;
+  }
+  
+  function msgbox(txt,title) {
+    if(title==undefined) {
+      title = "Message!";
+    }
+    
+    $("#messageBox").text(txt);
+    $("#messageBox").dialog( "option", "title", title );
+    $("#messageBox").dialog('open');
+  }
+  
+  function d(txt) {
+    $("#debug").html($("#debug").html() + "<br />" + txt);
+  }
+  
+  function init() {
+    if(canvas.getContext) {
+      ctx = canvas.getContext('2d');
+           
+      draw();
+      
+      canvasClear();
+      
+    $("#canvasContainer").dialog({
+			autoOpen: false,
+      closeOnEscape: false,
+      resizable:false,
+      stack:false,
+      beforeclose:ctxBeforeClose,
+			width: 665,
+      height: 530
+		});
+    
+    $("#toolset").dialog({
+			autoOpen: false,
+      closeOnEscape: false,
+      resizable:false,
+			width: 400,
+      height: 400,
+      left:20
+		});
+    
+    // create mutually exclusive tool set for drawing/other tools
+    $("#tools0").buttonset({icons: {primary:'ui-icon-gear'},text:false});
+
+    
+    // create buttons out of all button tags
+    $('button').button();
+    
+    $("#canvasContainer").dialog('open');
+    $("#toolset").dialog('open');
+      
+    } else {
+      canvas.innerHTML = "no canvas!";
+      // TBD - error dialog here!!
+    }
+  }
+  
+  function ctxBeforeClose(evt,ui) {
+    msgbox("Sorry, cannot close this window for now!", "oops!");
+    return false;
+  }
+  
+  function canvasClear() {
+    if(!ctxCleared) {
+      ctx.clearRect(0,0,640,480); // clear canvas
+      
+      saveUndoData();
+      
+      ctxCleared = true;
+    }
+  }
+  
+  function ctxDataURL() {
+	d("<hr /><img src="+canvas.toDataURL()+" title=\"your image! Right click and save!\" /> <hr />");
+  }
+  
+  function draw() {
+  
+    
+    
+    ctx.font = "bolder 12px 'Trebuchet MS'";
+    ctx.fillStyle = "rgba(0,0,255,1)";
+    ctx.strokeStyle = ctxStrokeStyle;  
+    ctx.lineWidth = ctxLineWidth;
+    ctx.lineCap = ctxLineCap;
+    ctx.lineJoin = ctxLineJoin;
+    
+    //ctx.clearRect(0,0,100,15); // clear canvas  
+    //ctx.fillText("x : "+(mousex) + " y : "+(mousey) ,2,12);
+    
+    
+    
+    
+    if(md) {
+    
+      if(toolselected == toolline) {
+        if(!lineDrawActive) {
+          ctx.beginPath();
+          ctx.moveTo(downx,downy);
+          lineDrawActive = true;
+        }
+      }
+      
+      if(toolselected == toolpencil) {
+        ctx.beginPath();
+        ctx.moveTo(mouseprevx,mouseprevy);
+        ctx.lineTo(mousex,mousey);
+        ctx.stroke();
+      }
+      
+    } else {
+    
+      if(toolselected == toolline) {
+        if(lineDrawActive) {
+          ctx.lineTo(upx,upy);
+          ctx.stroke();
+          lineDrawActive = false;        
+        }
+      }
+      
+    }
+
+  }
+  
+  $("#requiem").mousemove(function(e) {
+    var x = e.pageX - $(this).offset().left;
+    var y = e.pageY - $(this).offset().top;
+
+    if(mouseprevx == 0) {
+      mouseprevx = x
+      mouseprevy = y
+    }
+  
+    mousex = x;
+    mousey = y;
+    
+    draw();
+    mouseprevx = x;
+    mouseprevy = y;
+    
+      
+  });
+
+  
+  $("#requiem").mousedown(function(e) {
+  
+    var x = e.pageX - $(this).offset().left;
+    var y = e.pageY - $(this).offset().top;
+    
+    md = true;
+    
+    downx = x;
+    downy = y;
+
+    draw();
+  });
+  
+  $("#requiem").mouseup(function(e) {
+  
+    var x = e.pageX - $(this).offset().left;
+    var y = e.pageY - $(this).offset().top;
+    
+    md = false;
+  
+    upx = x;
+    upy = y;
+ 
+    draw();
+    
+    saveUndoData();
+    ctxCleared = false;
+  });
+  
+  document.onkeyup = function(e) {
+    switch(e.keyCode) {
+      case 219: // [
+      case 188: // <
+        if(ctxLineWidth <=1) {
+          ctxLineWidth = 1;
+        } else {
+          ctxLineWidth--;
+        }
+        d("<b>Decrease line width - </b>" + ctxLineWidth);
+      break;
+      case 221: // ]
+      case 190: // >
+        ctxLineWidth++;
+        d("<b>Increase line width - </b>" + ctxLineWidth);
+      break;
+      
+      case 90: // z
+        undo();
+        d("<b>Undo, History length - </b>" + undoArray.length);
+        break;
+      
+      case 89: // y
+        redo();
+        d("<b>Redo, History length - </b>" + redoArray.length);
+        break;
+	  case 192: // ~ for debug
+		tmp = $("#debug");
+		if(tmp.dialog('isOpen'))
+			tmp.dialog('close');
+		else
+			tmp.dialog('open');
+		break;
+	  case 84: // t for tools
+		tmp = $("#toolSet");
+		if(tmp.dialog('isOpen'))
+			tmp.dialog('close');
+		else
+			tmp.dialog('open');
+		break;
+    }
+    
+    d("<b>keyCode: </b>"+e.keyCode);
+  }
+  
+  function saveUndoData() {
+    var imgdata = ctx.getImageData(0,0,640,480);
+    undoArray.unshift(imgdata);
+  }
+   
+  function undo() {
+    if(undoArray.length > 1) {
+      redoArray.unshift(undoArray.shift());
+      ctx.putImageData(undoArray[0],0,0);
+    }
+  }
+  
+  function redo() {
+    if(redoArray.length > 0) {
+      var imgdata = redoArray.shift()
+      undoArray.unshift(imgdata);
+      ctx.putImageData(imgdata,0,0);
+    }
+  }
+  
+/*
+Flood-fill (node, target-color, replacement-color):
+ 1. Set Q to the empty queue.
+ 2. If the color of node is not equal to target-color, return.
+ 3. Add node to Q.
+ 4. For each element n of Q:
+ 5.  If the color of n is equal to target-color:
+ 6.   Set w and e equal to n.
+ 7.   Move w to the west until the color of the node to the west of w no longer matches target-color.
+ 8.   Move e to the east until the color of the node to the east of e no longer matches target-color.
+ 9.   Set the color of nodes between w and e to replacement-color.
+10.   For each node n between w and e:
+11.    If the color of the node to the north of n is target-color, add that node to Q.
+       If the color of the node to the south of n is target-color, add that node to Q.
+12. Continue looping until Q is exhausted.
+13. Return.
+*/
+
+function floodFill(x, y, fillClr) {
+  //var clrQ = new Array();
+  if(y>0) y -= 1;
+  if(x>0) x -= 1;
+  
+  var pixelIndex = ( (y * 640) + x ) + 1;
+  var imgdata = ctx.getImageData(0,0,640,480);
+  var pix = imgdata.data;
+  var tmp = new Array();
+  
+  for(i = 0; i<pix.length; i+=4) {
+    tmp.push({ 0 : pix[i],1 : pix[i + 1],2 : pix[i + 2],3 : pix[i + 3]});
+  }
+  
+  
+}
+
+function invert() { 
+  
+  var imgdata = ctx.getImageData(0,0,640,480);
+  var pix = imgdata.data;
+  
+  for(i = 0; i<pix.length; i+=4) {
+    pix[i] = 255 - pix[i];
+    pix[i + 1] = 255 - pix[i + 1];
+    pix[i + 2] = 255 - pix[i + 2];
+  }
+  
+  ctx.putImageData(imgdata,0,0);
+  
+  saveUndoData();
+}
+  
+</script>
+</html>
+
