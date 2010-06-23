@@ -1,0 +1,75 @@
+/*
+
+23:53 23 May 2010
+tips and information - quick start guide
+visual tool indicator in the body bg for selected tool et al.. like a debug info layer types - properties to be provided by core
+
+
+--
+
+A basic drawing canvas with minimal functionality is created. Users can choose between two tools a pencil and line tool to draw, draw stlyes are hardcoded for the time being, later to be options for tools.
+
+Roadmap
+
+  UI/UX Related
+  
+  TBD - workspaces, as in a layout for all the windows to start with, and maybe multiple layouts - 1.0
+  TBD - tool options, more options for individual tools - 1.0
+  TBD - color picker - 1.0
+  TBD - status bar - 1.0
+  TBD - menu - 1.1
+  TBD - auto scroll for debug window - 1.0
+  TBD - Layers Palette - when needed
+  TBD - 
+  
+  Core Related
+  
+  TBD - create a  canvas manager, that can create multiple canvas'
+  TBD - canvas becomes a generic object, all functions mentioned below will go under the canvas object. most of all functions require you to pass in the layerID and selection rect. LayerID by default is 0 which is the base layer for the time being. - 1.0
+	- undoArray - an Array of undo objects, used by the undo and redo functions - 1.0
+	- redoArray - an Array of redo objects, used by the undo and redo functions - 1.0
+	- layerArray - an Array of layers - 1.0
+	- buffer - a buffer to hold temp drawData - 1.0
+	- composite - the composite image - 1.0
+	
+	- undo() - undo functions undos last action and populates redo array - 1.0
+	- redo() - redos the last action that was undone, and populates the undo array - 1.0
+	- save(type) - dataURL, PNG, JPEG, BMP, ORA
+	- invert(layerID,x,y,w,h) - inverts the colors in a given rect - 1.0
+	- rect(layerID,x,y,w,h) - draws a rectangle with the given rect - 1.0
+	- line(layerID,x1,y1,x2,y2) - draws a line from point x1y1 to x2y2 - 1.0
+	- resizeCanvas(w,h,direction) - just an idea
+	- resizeCanvasRelative(w,h,direction) - just an idea
+	- resizeImage(w,h) - just an idea
+	- crop(x,y,w,h) - sort of like resizeCanvas, again an idea.
+	- move
+	- selection
+	- rotate
+	
+	
+  TBD - the following functions are part of the canvasLayer Object
+	- invert(x,y,w,h) -> calls the main invert function, passing its own layerID with it - 1.0
+	- rect(x,y,w,h) -> calls the main invert function, passing its own layerID with it - 1.0
+	- line(x1,y1,x2,y2) -> calls the main invert function, passing its own layerID with it - 1.0
+	
+  
+  TBD - a temp layer for active drawing needs to be implemented, users get a composite of all the layers. the temp layer will be drawn above the current selected layer and any other layers above it will be drawn after the temp layer. right now part of the canvas object, and called a buffer - 1.0
+  
+  TBD - undo object, will contain three items,  - 1.0
+   - action - the action, or operation, copy, line, rect (need more clarity here)
+   - data - image data, function params..
+   - layerID - layer on which action happens
+   
+  TBD - undo and redo functions to be redone according to new undo object
+  
+  TBD - a brush system to create brushes, this is not hard once you understand what you need to do - 1.1
+  
+  
+  Links - Reference
+  
+  http://en.wikipedia.org/wiki/Create_Project
+  https://developer.mozilla.org/en/Canvas_tutorial
+  http://www.whatwg.org/specs/web-apps/current-work/multipage/the-canvas-element.html
+  http://create.freedesktop.org/wiki/OpenRaster
+  
+*/
